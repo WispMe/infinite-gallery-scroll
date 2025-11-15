@@ -1,65 +1,163 @@
+"use client";
+
 import Image from "next/image";
 
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { useRef, useState } from "react";
+
+const images = [
+  "/images/image-1.png",
+  "/images/image-2.png",
+  "/images/image-3.png",
+  "/images/image-4.png",
+  "/images/image-5.png",
+  "/images/image-6.png",
+  "/images/image-7.png",
+];
+
 export default function Home() {
+  const imgRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const isAnimating = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTime = useRef(0);
+
+  // Gap between images in pixels
+  const GAP = 100;
+  const IMAGE_HEIGHT = 300; // approximate height for positioning
+  const SCROLL_COOLDOWN = 600; // milliseconds to wait before allowing next scroll
+
+  useGSAP(() => {
+    // Initial setup - position all images
+    imgRefs.current.forEach((img, index) => {
+      if (img) {
+        const offset = index * GAP;
+        const distance = Math.abs(index - 0);
+
+        // Calculate scale based on distance from center
+        let scale = 1;
+        if (distance === 1) scale = 0.8;
+        else if (distance === 2) scale = 0.6;
+        else if (distance > 2) scale = 0.6;
+
+        // Calculate opacity - disappear if too far
+        const opacity = distance > 2 ? 0 : 1;
+
+        gsap.set(img, {
+          scale,
+          zIndex: images.length - distance,
+          opacity,
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          x: "-50%",
+          y: offset - IMAGE_HEIGHT / 2,
+        });
+      }
+    });
+  }, []);
+
+  const animateToIndex = (newIndex: number) => {
+    if (
+      isAnimating.current ||
+      newIndex < 0 ||
+      newIndex >= images.length ||
+      newIndex === currentIndex
+    ) {
+      return;
+    }
+
+    isAnimating.current = true;
+
+    imgRefs.current.forEach((img, index) => {
+      if (img) {
+        const relativePosition = index - newIndex;
+        const offset = relativePosition * GAP;
+        const distance = Math.abs(relativePosition);
+        const newZIndex = images.length - distance;
+
+        // Calculate scale based on distance from center
+        let scale = 1;
+        if (distance === 1) scale = 0.8;
+        else if (distance === 2) scale = 0.7;
+        else if (distance > 2) scale = 0.7;
+
+        // Calculate opacity - disappear if too far
+        const opacity = distance > 2 ? 0 : 1;
+
+        gsap.to(img, {
+          y: offset - IMAGE_HEIGHT / 2,
+          scale,
+          opacity,
+          zIndex: newZIndex,
+          duration: 0.35,
+          ease: "power2.inOut",
+          onComplete: () => {
+            if (index === newIndex) {
+              isAnimating.current = false;
+            }
+          },
+        });
+      }
+    });
+
+    setCurrentIndex(newIndex);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+
+    const now = Date.now();
+
+    // Check if we're still in cooldown period
+    if (now - lastScrollTime.current < SCROLL_COOLDOWN) {
+      return;
+    }
+
+    if (isAnimating.current) return;
+
+    // Only trigger if scroll is significant enough (prevents tiny accidental scrolls)
+    if (Math.abs(e.deltaY) < 10) return;
+
+    lastScrollTime.current = now;
+
+    if (e.deltaY > 0) {
+      // Scrolling down - go to next image
+      animateToIndex(currentIndex + 1);
+    } else {
+      // Scrolling up - go to previous image
+      animateToIndex(currentIndex - 1);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main>
+      <div
+        ref={containerRef}
+        className="flex h-screen fixed left-0 top-0 max-h-screen overflow-hidden w-full bg-[#EEEEEE]"
+        onWheel={handleWheel}
+      >
+        <div className="w-[275px] mx-auto h-full relative">
+          {images.map((src, index) => (
+            <div
+              key={index}
+              className="w-full"
+              ref={(el) => {
+                imgRefs.current[index] = el;
+              }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <Image
+                src={src}
+                width={800}
+                height={1200}
+                className="w-full aspect-3/4 object-cover shadow-2xl"
+                alt={`Image ${index + 1}`}
+              />
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
