@@ -33,13 +33,13 @@ export default function Home() {
     imgRefs.current.forEach((img, index) => {
       if (img) {
         const offset = index * GAP;
-        const distance = Math.abs(index - 0);
+        const distance = Math.abs(index);
 
         // Calculate scale based on distance from center
         let scale = 1;
         if (distance === 1) scale = 0.8;
         else if (distance === 2) scale = 0.6;
-        else if (distance > 2) scale = 0.6;
+        else if (distance > 2) scale = 0.4;
 
         // Calculate opacity - disappear if too far
         const opacity = distance > 2 ? 0 : 1;
